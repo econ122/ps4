@@ -1,0 +1,617 @@
+---
+title: "Problem Set 4"
+author: "Your Name"
+date: "`r Sys.Date()`"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = FALSE, warning = FALSE, message = FALSE)
+library(tidyverse)
+library(knitr)
+library(rpart)
+library(rpart.plot)
+library(randomForest)
+library(gbm)
+```
+
+# Tree-Based Methods Adventure: CloudFit's Advanced Analytics Journey
+
+**Course Material Covered:** Decision Trees, Pruning, Bagging, Random Forests, Boosting
+
+**Scenario Continuation:** Your work at TechStart Analytics with CloudFit has been so successful that Sarah (the CEO) wants to explore more sophisticated modeling approaches. "I've heard that tree-based methods can capture complex patterns that our previous models might have missed," she says. "Plus, I'd love to see which features are *truly* driving renewals!" You're now diving into decision trees and ensemble methods to take CloudFit's predictive capabilities to the next level.
+
+---
+
+## **Part 1: Single Decision Trees**
+*"Understanding the Tree Structure"*
+
+Sarah is intrigued by decision trees after reading that they're easy to interpret and visualize. "Can we build a decision tree to predict renewals?" she asks.
+
+### **Problem 1.1: Tree Basics and Interpretation**
+
+You build a decision tree to predict subscription renewal using the same predictors from PS3: age, workout_frequency, premium_features_used, and app_usage_minutes.
+
+**Here's a simplified representation of your fitted tree:**
+
+```
+Root Node: All 5,000 users (40% renewal rate)
+├─ workout_frequency < 3
+│  └─ Premium_features_used < 2
+│     ├─ Yes: 800 users (15% renewal) - LEAF
+│     └─ No: 1200 users (35% renewal)
+│        └─ age < 30
+│           ├─ Yes: 600 users (45% renewal) - LEAF
+│           └─ No: 600 users (25% renewal) - LEAF
+└─ workout_frequency >= 3
+   └─ app_usage_minutes >= 45
+      ├─ Yes: 1800 users (65% renewal) - LEAF
+      └─ No: 600 users (40% renewal) - LEAF
+```
+
+**Your Tasks:**
+
+a) How would you classify a 28-year-old user who works out 2 times/week, uses 1 premium feature, and spends 35 minutes/day in the app? Walk through the tree and explain your prediction.
+
+b) According to this tree, what is the single most important predictor of renewal? How do you know?
+
+c) What are the advantages of this tree model compared to the logistic regression model from PS3?
+
+d) What potential problems do you see with this tree?
+
+```{r problem-1-1}
+# Your answers here:
+
+# a) Classification path:
+
+
+# b) Most important predictor:
+
+
+# c) Advantages over logistic regression:
+
+
+# d) Potential problems:
+
+```
+
+---
+
+### **Problem 1.2: Pruning Strategy**
+
+You grow a very large tree (with no stopping rules) and get these complexity parameter (cp) results from cross-validation:
+
+```
+┌────────────┬──────────────────┬─────────────────┬──────────────┬──────────────┐
+│   CP       │ Training Error   │   CV Error      │  CV Std Err  │ # Splits     │
+├────────────┼──────────────────┼─────────────────┼──────────────┼──────────────┤
+│   0.050    │      0.18        │      0.20       │    0.012     │      2       │
+│   0.025    │      0.15        │      0.18       │    0.011     │      5       │
+│   0.015    │      0.12        │      0.17       │    0.010     │      8       │
+│   0.008    │      0.09        │      0.16       │    0.011     │     12       │
+│   0.003    │      0.06        │      0.18       │    0.013     │     18       │
+│   0.001    │      0.03        │      0.22       │    0.015     │     25       │
+└────────────┴──────────────────┴─────────────────┴──────────────┴──────────────┘
+```
+
+**Your Tasks:**
+
+a) What is overfitting, and what evidence of it do you see in this table?
+
+b) Which cp value would you choose for pruning based solely on minimizing CV error? Explain your reasoning using the bias-variance trade-off.
+
+c) Sarah asks: "Why don't we just use the biggest tree since it has the lowest training error?" How would you respond?
+
+d) **The 1-SE Rule** - A common principle in model selection is the "1-SE rule": Choose the simplest model whose CV error is within one standard error of the minimum CV error.
+   - Calculate the 1-SE threshold
+   - Which cp value would you select using the 1-SE rule?
+   - How does this tree compare to your answer in part (b) in terms of complexity?
+   - Why might practitioners prefer the 1-SE rule over simply choosing the minimum CV error?
+
+e) After pruning with your chosen cp from the 1-SE rule, you get a tree with 8 splits. How might this perform compared to:
+   - The tree with 12 splits (minimum CV error)?
+   - The original large tree with 25 splits?
+
+```{r problem-1-2}
+# Your answers here:
+
+# a) Overfitting evidence:
+
+
+# b) Chosen cp value (minimum CV error) and reasoning:
+
+
+# c) Response to Sarah:
+
+
+# d) 1-SE Rule analysis:
+
+# 1-SE threshold:
+threshold_1se <- 
+
+# CP selected by 1-SE rule:
+
+
+# Comparison to part (b):
+
+
+# Why prefer the 1-SE rule:
+
+
+# e) Performance comparisons:
+# vs. 12-split tree:
+
+
+# vs. 25-split tree:
+
+```
+
+---
+
+### **Problem 1.3: Interaction Effects in Trees**
+
+One of the key advantages of decision trees is their ability to automatically capture interaction effects between variables.
+
+**Your Task:** 
+
+a) Explain what an interaction effect is in the context of the CloudFit data. Give a concrete example using two predictors.
+
+b) How do decision trees naturally capture interactions without explicitly creating interaction terms (unlike in logistic regression)?
+
+c) Looking at the tree structure from Problem 1.1, identify one interaction effect that the tree has captured. Explain what this interaction means for CloudFit's business.
+
+d) If you were using logistic regression instead, how would you need to modify the model to capture this same interaction?
+
+```{r problem-1-3}
+# Your answers here:
+
+# a) Interaction effect explanation and example:
+
+
+# b) How trees capture interactions:
+
+
+# c) Interaction in the tree:
+
+
+# d) Logistic regression approach:
+
+```
+
+---
+
+## **Part 2: Bagging and Random Forests**
+*"Strength in Numbers"*
+
+Your data science colleague mentions: "A single tree is unstable - small changes in data can completely change the tree structure. What if we built many trees and averaged their predictions?"
+
+### **Problem 2.1: Bootstrap Aggregating (Bagging)**
+
+**Your Task:** Explain the bagging process to Sarah using the CloudFit dataset:
+
+a) How does bagging create multiple training sets from the original 5,000 users?
+
+b) Why does bagging reduce variance compared to a single tree?
+
+c) What is the trade-off of using bagging? (Hint: Think about interpretability)
+
+d) If you build 500 bagged trees, approximately how many of the original 5,000 users would appear in each bootstrapped sample? Why does this matter?
+
+```{r problem-2-1}
+# Your answers here:
+
+# a) Bootstrap process:
+
+
+# b) Variance reduction:
+
+
+# c) Trade-offs:
+
+
+# d) Sample size calculation:
+# Approximately what fraction of observations appear in each bootstrap sample?
+n <- 5000
+prob_included <- 
+expected_sample_size <- 
+
+# Why this matters:
+
+```
+
+---
+
+### **Problem 2.2: Random Forest Mechanics**
+
+You build a random forest with 500 trees using the CloudFit data. Here are the results:
+
+```
+Out-of-Bag (OOB) Error: 16%
+
+Variable Importance (Mean Decrease in Gini):
+workout_frequency:        245
+premium_features_used:    198
+app_usage_minutes:        176
+age:                       89
+```
+
+**Your Tasks:**
+
+a) What is the Out-of-Bag (OOB) error, and why is it useful? How does it differ from cross-validation?
+
+b) According to the variable importance scores, which predictor is most important? Does this match what you found with the single decision tree?
+
+c) Random forests add an additional layer of randomness beyond bagging. What is it, and why does it help?
+
+d) Sarah wants to know why someone didn't renew. Can you show her a simple decision path like with a single tree? Why or why not?
+
+```{r problem-2-2}
+# Your answers here:
+
+# a) OOB error explanation:
+
+
+# b) Most important predictor:
+
+
+# c) Additional randomness in random forests:
+
+
+# d) Interpretability limitation:
+
+```
+
+---
+
+### **Problem 2.3: Tuning Random Forests**
+
+You experiment with different values of `mtry` (the number of predictors randomly sampled at each split). You have 4 total predictors.
+
+Results:
+
+- mtry = 1: OOB Error = 18%
+- mtry = 2: OOB Error = 16%  
+- mtry = 3: OOB Error = 17%
+- mtry = 4: OOB Error = 19% 
+
+**Your Tasks:**
+
+a) Why does mtry = 4 give the same result as bagging?
+
+b) Why might mtry = 1 or mtry = 4 perform worse than mtry = 2?
+
+c) What is the default value of mtry for classification problems, and why is this a reasonable default?
+
+```{r problem-2-3}
+# Your answers here:
+
+# a) mtry = 4 explanation:
+
+
+# b) Performance pattern:
+
+
+# c) Default mtry for classification:
+# For p predictors, default mtry = 
+
+```
+
+---
+
+## **Part 3: Boosting**
+*"Learning from Mistakes"*
+
+Sarah's technical advisor suggests: "Random forests build trees independently and average them. But what if each new tree focused on fixing the mistakes of previous trees? That's boosting!"
+
+### **Problem 3.1: Boosting Fundamentals**
+
+**Your Task:** Explain how boosting differs from bagging and random forests:
+
+a) In boosting, how does each new tree relate to the previous trees? What does each tree try to do?
+
+b) Why can boosting potentially achieve better performance than random forests?
+
+c) What is the risk of boosting that doesn't apply as much to random forests?
+
+d) Explain the role of the learning rate (shrinkage parameter) in boosting. Why do we use values like 0.01 or 0.1 instead of 1.0?
+
+```{r problem-3-1}
+# Your answers here:
+
+# a) Sequential learning process:
+
+
+# b) Performance advantage:
+
+
+# c) Risk of boosting:
+
+
+# d) Learning rate role:
+
+```
+
+---
+
+### **Problem 3.2: Boosting Hyperparameters**
+
+You build gradient boosting models with different hyperparameters on CloudFit data:
+
+```
+┌─────────────────┬─────────┬──────────┬──────────────────┬─────────────────┐
+│     Model       │ n.trees │  lambda  │  Training Error  │  Test Error     │
+├─────────────────┼─────────┼──────────┼──────────────────┼─────────────────┤
+│     Model A     │   100   │   0.1    │       0.14       │      0.18       │
+│     Model B     │   500   │   0.1    │       0.10       │      0.17       │
+│     Model C     │  1000   │   0.1    │       0.06       │      0.19       │
+│     Model D     │   500   │   0.01   │       0.13       │      0.16       │
+│     Model E     │  1000   │   0.01   │       0.11       │      0.16       │
+└─────────────────┴─────────┴──────────┴──────────────────┴─────────────────┘
+```
+
+**Your Tasks:**
+
+a) Which model shows the most evidence of overfitting? How can you tell?
+
+b) Compare Models B and D. They use different learning rates (lambda). What trade-off do you observe?
+
+c) Which model would you recommend for CloudFit and why?
+
+d) If you had unlimited computation time, how might you improve Model E?
+
+```{r problem-3-2}
+# Your answers here:
+
+# a) Overfitting identification:
+
+
+# b) Learning rate trade-off:
+
+
+# c) Recommendation:
+
+
+# d) Improvement strategy:
+
+```
+
+---
+
+### **Problem 3.3: Comparing All Methods**
+
+Here's a summary of all methods you've tried on CloudFit's subscription renewal prediction:
+
+```
+┌──────────────────────────┬──────────────┬───────────────┬─────────────────┐
+│         Method           │  Test Error  │  Train Time   │  Interpretability│
+├──────────────────────────┼──────────────┼───────────────┼─────────────────┤
+│  Logistic Regression     │     0.18     │    0.5 sec    │      High       │
+│  K-NN (k=15)             │     0.19     │    2 sec      │      Low        │
+│  Single Decision Tree    │     0.20     │    1 sec      │      High       │
+│  Pruned Decision Tree    │     0.17     │    1.5 sec    │      High       │
+│  Random Forest           │     0.16     │    15 sec     │      Medium     │
+│  Gradient Boosting       │     0.16     │    20 sec     │      Medium     │
+└──────────────────────────┴──────────────┴───────────────┴─────────────────┘
+```
+
+**Your Tasks:**
+
+a) Summarize the overall pattern: What do tree-based ensemble methods (random forest & boosting) offer compared to simpler methods?
+
+b) When might you still prefer a single pruned decision tree over random forests, despite slightly worse test error?
+
+c) Sarah needs to make a business decision: Should CloudFit deploy the random forest model or stick with logistic regression? Consider accuracy, interpretability, and maintenance. What do you recommend?
+
+d) What additional information would help you make a more informed recommendation?
+
+```{r problem-3-3}
+# Your answers here:
+
+# a) Ensemble method advantages:
+
+
+# b) When to prefer single trees:
+
+
+# c) Business recommendation:
+
+
+# d) Additional information needed:
+
+```
+
+---
+
+### **Problem 3.4: XGBoost vs. Standard Gradient Boosting**
+
+Sarah's technical advisor mentions a newer algorithm called XGBoost (Extreme Gradient Boosting) that has become very popular in data science competitions.
+
+**Your Task:**
+
+a) Research and explain three key differences between XGBoost and standard gradient boosting (GBM).
+
+b) What are the main advantages XGBoost offers? Consider computational efficiency, regularization, and handling of missing values.
+
+c) Would XGBoost likely improve CloudFit's renewal predictions compared to standard GBM? Why or why not?
+
+d) What are the potential drawbacks of using XGBoost instead of standard GBM for this business problem?
+
+```{r problem-3-4}
+# Your answers here:
+
+# a) Three key differences:
+
+
+# b) Main advantages:
+
+
+# c) Potential improvement for CloudFit:
+
+
+# d) Potential drawbacks:
+
+```
+
+---
+
+## **Part 4: Variable Importance and Business Insights**
+*"What Really Matters?"*
+
+Sarah is most excited about understanding *why* users renew or don't renew.
+
+### **Problem 4.1: Comparing Variable Importance Across Methods**
+
+Here's variable importance from different methods (higher = more important):
+
+```
+┌────────────────────────┬──────────┬─────────────┬──────────────────┬──────────┐
+│      Predictor         │ Logistic │ Single Tree │  Random Forest   │ Boosting │
+├────────────────────────┼──────────┼─────────────┼──────────────────┼──────────┤
+│  workout_frequency     │   2.1    │     1       │       245        │    38    │
+│  premium_features_used │   1.8    │     2       │       198        │    32    │
+│  app_usage_minutes     │   1.6    │     3       │       176        │    28    │
+│  age                   │   0.9    │     4       │        89        │    15    │
+└────────────────────────┴──────────┴─────────────┴──────────────────┴──────────┘
+
+Note: For Logistic Regression, these are standardized coefficient magnitudes.
+For Single Tree, these are ranks (1=most important, 4=least important).
+For RF and Boosting, these are importance scores from the models.
+```
+
+**Your Tasks:**
+
+a) What is the consensus across all four methods about which predictors matter most?
+
+b) Why might the importance scores differ between methods?
+
+c) Based on these results, what actionable business recommendations would you make to Sarah?
+
+d) Sarah asks: "Should we drop age from the model since it seems least important?" How would you respond?
+
+```{r problem-4-1}
+# Your answers here:
+
+# a) Consensus findings:
+
+
+# b) Why importance differs:
+
+
+# c) Business recommendations:
+
+
+# d) Response about dropping age:
+
+```
+
+---
+
+### **Problem 4.2: Partial Dependence Analysis**
+
+You create partial dependence plots from the random forest model and observe:
+
+- **workout_frequency**: Renewal probability increases steadily from 20% (0 workouts/week) to 70% (7 workouts/week)
+- **premium_features_used**: Renewal jumps from 30% (0 features) to 55% (1 feature) to 65% (2+ features)
+- **app_usage_minutes**: Renewal increases gradually from 25% (0 mins) to 60% (60+ mins)
+- **age**: Slight U-shaped pattern - higher renewal for users under 25 and over 45, lower in between
+
+**Your Tasks:**
+
+a) What is a partial dependence plot, and what does it tell us?
+
+b) Which feature shows the most dramatic relationship with renewal?
+
+c) What does the U-shaped age pattern suggest about CloudFit's user base?
+
+d) If CloudFit can only focus on improving ONE metric, which should it be and why?
+
+```{r problem-4-2}
+# Your answers here:
+
+# a) Partial dependence explanation:
+
+
+# b) Most dramatic relationship:
+
+
+# c) Age pattern interpretation:
+
+
+# d) Focus recommendation:
+
+```
+
+---
+
+### **Problem 4.3: Feature Engineering for Tree-Based Models**
+
+While tree-based models are scale-invariant and can handle raw features well, thoughtful feature engineering can still significantly improve their performance.
+
+**Your Task:**
+
+a) Propose two new features you could create from the existing CloudFit variables (age, workout_frequency, premium_features_used, app_usage_minutes) that might help tree-based models make better predictions.
+
+b) For each new feature, explain:
+   - How you would calculate it
+   - Why it might be predictive of subscription renewal
+   - What patterns or relationships it captures that the original features might miss
+
+c) How might these engineered features benefit tree-based models differently than they would benefit logistic regression?
+
+d) Implement code to create one of your proposed features:
+
+```{r problem-4-3}
+# Your answers here:
+
+# a) Two proposed features:
+# Feature 1:
+# Feature 2:
+
+
+# b) Detailed explanations:
+# Feature 1 explanation:
+
+
+# Feature 2 explanation:
+
+
+# c) Different benefits for trees vs. logistic regression:
+
+
+# d) Implementation of Feature 1:
+# Example code structure:
+# cloudfit_data <- cloudfit_data %>%
+#   mutate(
+#     new_feature = ...
+#   )
+
+```
+
+---
+
+## **Conclusion: The Complete Picture**
+
+You present your comprehensive analysis to Sarah and the CloudFit team. The tree-based methods have revealed complex patterns and interactions that simpler models missed, while also confirming that workout frequency is the key driver of renewals.
+
+**Final Reflection:** 
+
+Write a brief summary addressing:
+
+a) How tree-based methods complemented the simpler methods from the previous problem set
+
+b) What you learned about the bias-variance trade-off through single trees vs. ensembles
+
+c) The importance of balancing predictive accuracy with interpretability in business settings
+
+```{r final-reflection}
+# Your reflection here:
+
+# a) Complementary methods:
+
+
+# b) Bias-variance insights:
+
+
+# c) Accuracy vs. interpretability:
+```
+
